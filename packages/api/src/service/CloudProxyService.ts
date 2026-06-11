@@ -19,6 +19,7 @@ import {CloudAdapterRegistry} from '../registry/CloudAdapterRegistry'
 import {serverlessSchemaFor} from '../cloud-spi/serverlessSchema'
 import {k8sSchemaFor} from '../cloud-spi/eksSchema'
 import {databaseSchemaFor} from '../cloud-spi/databaseSchema'
+import {dynamodbSchemaFor} from '../cloud-spi/dynamodbSchema'
 import {azureEndpoint} from '../azure'
 import {checkGcpRuntime, gcpEndpoint} from '../gcp'
 
@@ -56,6 +57,12 @@ export class CloudProxyService {
         })
         services.push({
             cloud,
+            service: 'dynamodb',
+            displayName: 'DynamoDB',
+            availability: this.registry.get(cloud, 'dynamodb') ? 'available' : 'coming_soon',
+        })
+        services.push({
+            cloud,
             service: 'serverless',
             displayName: 'Serverless',
             availability: this.registry.get(cloud, 'serverless') ? 'available' : 'coming_soon',
@@ -81,6 +88,7 @@ export class CloudProxyService {
         if (service === 'storage') return storageSchemaFor(cloud)
         if (service === 'k8s') return k8sSchemaFor(cloud)
         if (service === 'database') return databaseSchemaFor(cloud)
+        if (service === 'dynamodb') return dynamodbSchemaFor(cloud)
         if (service === 'serverless') return serverlessSchemaFor(cloud)
         return null
     }

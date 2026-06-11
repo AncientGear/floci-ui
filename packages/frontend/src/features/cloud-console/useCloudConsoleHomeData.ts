@@ -1,4 +1,3 @@
-import {useMemo} from 'react'
 import {Cpu, Database, KeyRound, MessageSquare, Table2, Zap} from 'lucide-react'
 import {
     useCloudConsoleResourcesQuery,
@@ -38,78 +37,79 @@ export function useCloudConsoleHomeData(cloud: CloudProvider) {
     const k8sResourcesQuery = useCloudConsoleResourcesQuery({...queryContext, service: 'k8s'})
     const databaseResourcesQuery = useCloudConsoleResourcesQuery({...queryContext, service: 'database'})
     const secretsQuery = useSecretsQuery(cloud === 'aws' && status?.runtime === 'reachable')
-    const serviceCards = useMemo<ConsoleServiceCard[]>(() => {
-        const storage = servicesQuery.data?.find((service) => service.service === 'storage')
-        const k8s = servicesQuery.data?.find((service) => service.service === 'k8s')
-        const database = servicesQuery.data?.find((service) => service.service === 'database')
-
-        return [
-            {
-                id: 'storage',
-                label: storage?.displayName ?? 'Storage',
-                status: storage?.availability ?? (cloud === 'gcp' ? 'coming_soon' : 'available'),
-                count: storageResourcesQuery.data?.length,
-                icon: Database,
-                route: `/cloud-explorer/${cloud}/storage`,
-                meta: serviceMetaLabel(status, storageResourcesQuery.isLoading, 'resources'),
-            },
-            {
-                id: 'k8s',
-                label: k8s?.displayName ?? 'k8s Engine',
-                status: k8s?.availability ?? 'coming_soon',
-                count: k8sResourcesQuery.data?.length,
-                icon: Cpu,
-                route: `/cloud-explorer/${cloud}/k8s`,
-                meta: serviceMetaLabel(status, k8sResourcesQuery.isLoading, 'clusters'),
-            },
-            {
-                id: 'database',
-                label: database?.displayName ?? 'Database',
-                status: database?.availability ?? 'coming_soon',
-                count: databaseResourcesQuery.data?.length,
+    const dynamodbResourcesQuery = useCloudConsoleResourcesQuery({...queryContext, service: 'dynamodb'})
+    const storage = servicesQuery.data?.find((service) => service.service === 'storage')
+    const k8s = servicesQuery.data?.find((service) => service.service === 'k8s')
+    const database = servicesQuery.data?.find((service) => service.service === 'database')
+    const dynamodb = servicesQuery.data?.find((service) => service.service === 'dynamodb')
+    const dynamodbCount = dynamodbResourcesQuery.data?.length
+    const serviceCards: ConsoleServiceCard[] = [
+        {
+            id: 'storage',
+            label: storage?.displayName ?? 'Storage',
+            status: storage?.availability ?? (cloud === 'gcp' ? 'coming_soon' : 'available'),
+            count: storageResourcesQuery.data?.length,
+            icon: Database,
+            route: `/cloud-explorer/${cloud}/storage`,
+            meta: serviceMetaLabel(status, storageResourcesQuery.isLoading, 'resources'),
+        },
+        {
+            id: 'k8s',
+            label: k8s?.displayName ?? 'k8s Engine',
+            status: k8s?.availability ?? 'coming_soon',
+            count: k8sResourcesQuery.data?.length,
+            icon: Cpu,
+            route: `/cloud-explorer/${cloud}/k8s`,
+            meta: serviceMetaLabel(status, k8sResourcesQuery.isLoading, 'clusters'),
+        },
+        {
+            id: 'database',
+            label: database?.displayName ?? 'Database',
+            status: database?.availability ?? 'coming_soon',
+            count: databaseResourcesQuery.data?.length,
+            icon: Table2,
+            route: `/cloud-explorer/${cloud}/database`,
+            meta: serviceMetaLabel(status, databaseResourcesQuery.isLoading, 'instances'),
+        },
+        ...(cloud === 'aws'
+            ? [{
+                id: 'dynamodb',
+                label: dynamodb?.displayName ?? 'DynamoDB',
+                status: dynamodb?.availability ?? 'coming_soon',
+                count: dynamodbCount,
                 icon: Table2,
-                route: `/cloud-explorer/${cloud}/database`,
-                meta: serviceMetaLabel(status, databaseResourcesQuery.isLoading, 'instances'),
-            },
-            ...(cloud === 'aws' ? [{
+                route: `/cloud-explorer/${cloud}/dynamodb`,
+                meta: serviceMetaLabel(status, dynamodbResourcesQuery.isLoading, 'tables'),
+            } satisfies ConsoleServiceCard, {
                 id: 'secretsmanager',
                 label: 'Secrets Manager',
-                status: 'available' as const,
+                status: 'available',
                 count: secretsQuery.data?.length,
                 icon: KeyRound,
                 route: '/secretsmanager',
                 meta: serviceMetaLabel(status, secretsQuery.isLoading, 'secrets'),
-            }] : []),
-            ...SERVICE_PLACEHOLDERS.map((service) => ({
-                ...service,
-                status: 'coming_soon' as const,
-                count: undefined,
-                route: undefined,
-                meta: 'not wired yet',
-            })),
-        ]
-    }, [
-        databaseResourcesQuery.data,
-        databaseResourcesQuery.isLoading,
-        cloud,
-        k8sResourcesQuery.data,
-        k8sResourcesQuery.isLoading,
-        secretsQuery.data,
-        secretsQuery.isLoading,
-        servicesQuery.data,
-        status,
-        storageResourcesQuery.data,
-        storageResourcesQuery.isLoading,
-    ])
+            } satisfies ConsoleServiceCard]
+            : []),
+        ...SERVICE_PLACEHOLDERS.map((service) => ({
+            ...service,
+            status: 'coming_soon' as const,
+            count: undefined,
+            route: undefined,
+            meta: 'not wired yet',
+        })),
+    ]
 
     const resourcesLoading = storageResourcesQuery.isLoading
         || k8sResourcesQuery.isLoading
         || databaseResourcesQuery.isLoading
         || (cloud === 'aws' && secretsQuery.isLoading)
+        || dynamodbResourcesQuery.isLoading
     const resourcesError = storageResourcesQuery.isError
         || k8sResourcesQuery.isError
         || databaseResourcesQuery.isError
+        || dynamodbResourcesQuery.isError
         || (cloud === 'aws' && secretsQuery.isError)
+    const availableServices = serviceCards.filter((service) => service.status === 'available').length
 
     return {
         cloudsQuery,
@@ -118,11 +118,12 @@ export function useCloudConsoleHomeData(cloud: CloudProvider) {
         runtimeState: runtimeLabelFor(status, statusQuery.isLoading),
         runtimeClass: runtimeClassFor(status, statusQuery.isLoading),
         runtimeDetail: status?.error ?? runtimeDetailFor(cloud, status),
-        activeServices: serviceCards.filter((service) => service.status === 'available').length,
+        activeServices: availableServices,
         activeServicesDetail: activeServicesDetailFor(cloud),
         resourceCount: (storageResourcesQuery.data?.length ?? 0)
             + (k8sResourcesQuery.data?.length ?? 0)
             + (databaseResourcesQuery.data?.length ?? 0)
+            + (dynamodbCount ?? 0)
             + (cloud === 'aws' ? (secretsQuery.data?.length ?? 0) : 0),
         resourceDetail: resourceDetailFor(cloud, status, statusQuery.isLoading, resourcesLoading, resourcesError),
         serviceCards,

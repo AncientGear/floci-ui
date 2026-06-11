@@ -1,8 +1,10 @@
+import {type ElementType, type KeyboardEvent, useEffect, useId, useRef, useState} from 'react'
 import {NavLink, Outlet, useLocation} from 'react-router-dom'
 import {
     Database,
     Boxes,
     KeyRound,
+    ChevronDown,
     LayoutDashboard,
     MessageSquare,
     Moon,
@@ -20,10 +22,10 @@ import {useQuery} from '@tanstack/react-query'
 import {getCloudStatus} from '@/api/cloudProxyClient'
 import {AccountSwitcher} from '@/components/AccountSwitcher'
 
-function NavItem({to, icon, label}: { to: string; icon: React.ElementType; label: string }) {
+function NavItem({to, icon, label, className}: { to: string; icon: ElementType; label: string; className?: string }) {
     const Icon = icon
     return (
-        <NavLink className="nav-link" to={to}>
+        <NavLink className={({isActive}) => navLinkClassName(className, isActive)} to={to}>
             <Icon size={14}/>
             <span>{label}</span>
         </NavLink>
@@ -40,14 +42,13 @@ const CLOUD_SERVICE_ICONS = {
     compute: Server,
     networking: Network,
     serverless: Zap,
-} satisfies Record<string, React.ElementType>
+} satisfies Record<string, ElementType>
 
 type CloudSidebarService = keyof typeof CLOUD_SERVICE_ICONS
 
 const CLOUD_SERVICE_ITEMS: Array<{name: CloudSidebarService; label: string; route?: string}> = [
     {name: 'storage', label: 'Storage', route: 'storage'},
     {name: 'k8s', label: 'k8s Engine', route: 'k8s'},
-    {name: 'database', label: 'Database', route: 'database'},
     {name: 'compute', label: 'Compute', route: 'compute'},
     {name: 'networking', label: 'Networking', route: 'networking'},
     {name: 'secretsmanager', label: 'Secrets Manager', route: '/secretsmanager'},
@@ -60,6 +61,8 @@ function CloudServiceNav() {
     const location = useLocation()
     const cloud = activeCloudFromPath(location.pathname)
     const cloudLabel = cloud.toUpperCase()
+    const showDatabaseGroup = cloud === 'aws'
+    const showDatabaseLink = cloud === 'azure'
 
     return (
         <div className="nav-section cloud-service-nav">
@@ -83,6 +86,77 @@ function CloudServiceNav() {
                     </div>
                 )
             })}
+            {showDatabaseGroup
+                ? <DatabaseGroupNav cloud={cloud}/>
+                : showDatabaseLink
+                    ? <NavItem to={`/cloud-explorer/${cloud}/database`} icon={Table2} label="Database"/>
+                    : (
+                        <div className="nav-link disabled">
+                            <Table2 size={14}/>
+                            <span>Database</span>
+                            <span className="nav-soon">Soon</span>
+                        </div>
+                    )}
+        </div>
+    )
+}
+
+function DatabaseGroupNav({cloud}: {cloud: 'aws'}) {
+    const location = useLocation()
+    const groupId = useId()
+    const databaseLinkRef = useRef<HTMLAnchorElement | null>(null)
+    const isActive = location.pathname === `/cloud-explorer/${cloud}/database`
+        || location.pathname === `/cloud-explorer/${cloud}/dynamodb`
+    const [isOpen, setIsOpen] = useState(isActive)
+    const [focusFirstChild, setFocusFirstChild] = useState(false)
+
+    useEffect(() => {
+        if (isActive) {
+            setIsOpen(true)
+        }
+    }, [isActive])
+
+    useEffect(() => {
+        if (isOpen && focusFirstChild) {
+            databaseLinkRef.current?.focus()
+            setFocusFirstChild(false)
+        }
+    }, [focusFirstChild, isOpen])
+
+    const openAndFocusFirstChild = () => {
+        setIsOpen(true)
+        setFocusFirstChild(true)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+            event.preventDefault()
+            openAndFocusFirstChild()
+        }
+    }
+
+    return (
+        <div className={isActive ? 'nav-group active' : 'nav-group'}>
+            <button
+                aria-controls={groupId}
+                aria-expanded={isOpen}
+                className={navGroupTriggerClassName(isActive)}
+                type="button"
+                onClick={() => setIsOpen((open) => !open)}
+                onKeyDown={handleKeyDown}
+            >
+                <Table2 size={14}/>
+                <span>Database</span>
+                <ChevronDown className={isOpen ? 'nav-group-chevron open' : 'nav-group-chevron'} size={14}/>
+            </button>
+            <div className={isOpen ? 'nav-group-children open' : 'nav-group-children'} id={groupId}>
+                <NavLink className={({isActive: linkActive}) => navLinkClassName('nav-sublink', linkActive)} ref={databaseLinkRef} to={`/cloud-explorer/${cloud}/database`}>
+                    <span>Database</span>
+                </NavLink>
+                <NavLink className={({isActive: linkActive}) => navLinkClassName('nav-sublink', linkActive)} to={`/cloud-explorer/${cloud}/dynamodb`}>
+                    <span>DynamoDB</span>
+                </NavLink>
+            </div>
         </div>
     )
 }
@@ -148,4 +222,12 @@ export function Layout() {
 function activeCloudFromPath(pathname: string): 'aws' | 'azure' | 'gcp' {
     const match = pathname.match(/^\/(?:cloud-explorer|console)\/(aws|azure|gcp)(?:\/|$)/)
     return (match?.[1] ?? 'aws') as 'aws' | 'azure' | 'gcp'
+}
+
+function navLinkClassName(className: string | undefined, isActive: boolean): string {
+    return [className ?? 'nav-link', isActive ? 'active' : ''].filter(Boolean).join(' ')
+}
+
+function navGroupTriggerClassName(isActive: boolean): string {
+    return ['nav-link', 'nav-group-trigger', isActive ? 'active' : ''].filter(Boolean).join(' ')
 }

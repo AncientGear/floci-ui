@@ -1,4 +1,4 @@
-import {type ElementType, useMemo, useState} from 'react'
+import {type ElementType, useState} from 'react'
 import {Cloud, DatabaseZap, Info, Radio, Route, ShieldCheck, X} from 'lucide-react'
 import {Navigate, useNavigate, useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
@@ -6,8 +6,8 @@ import {getCloudStatus, getServiceSchema, listClouds, listCloudServices} from '@
 import {CloudSelector} from '@/components/CloudSelector'
 import {DynamicResourceView} from '@/components/DynamicResourceView'
 import {normalizeCapabilities} from '@/lib/capabilities'
-import type {CloudProvider, CloudServiceDescriptor, CloudServiceType, CloudStatus} from '@/types/cloud'
 import type {ServiceSchema} from '@/types/schema'
+import {CLOUD_PROVIDER, CLOUD_SERVICE, type CloudProvider, type CloudServiceDescriptor, type CloudServiceType, type CloudStatus} from '@/types/cloud'
 
 export function CloudExplorerPage() {
     const navigate = useNavigate()
@@ -38,10 +38,7 @@ export function CloudExplorerPage() {
         queryFn: ({signal}) => getServiceSchema(cloud, service, signal),
     })
 
-    const selectedService = useMemo(
-        () => servicesQuery.data?.find((item) => item.service === service),
-        [service, servicesQuery.data],
-    )
+    const selectedService = servicesQuery.data?.find((item) => item.service === service)
 
     if (!routeCloud || !routeService) {
         return <Navigate to="/cloud-explorer/aws/storage" replace/>
@@ -109,11 +106,19 @@ export function CloudExplorerPage() {
 }
 
 function normalizeCloud(value?: string): CloudProvider | null {
-    return value === 'aws' || value === 'azure' || value === 'gcp' ? value : null
+    return value === CLOUD_PROVIDER.AWS || value === CLOUD_PROVIDER.AZURE || value === CLOUD_PROVIDER.GCP ? value : null
 }
 
 function normalizeService(value?: string): CloudServiceType | null {
-    return value === 'storage' || value === 'k8s' || value === 'database' || value === 'compute' || value === 'networking' || value === 'serverless' ? value : null
+    return value === CLOUD_SERVICE.STORAGE
+        || value === CLOUD_SERVICE.K8S
+        || value === CLOUD_SERVICE.DATABASE
+        || value === CLOUD_SERVICE.DYNAMODB
+        || value === CLOUD_SERVICE.COMPUTE
+        || value === CLOUD_SERVICE.NETWORKING
+        || value === CLOUD_SERVICE.SERVERLESS
+        ? value
+        : null
 }
 
 function RuntimeCard({

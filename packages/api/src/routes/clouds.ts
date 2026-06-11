@@ -242,7 +242,7 @@ function isCloudProvider(value: string): value is CloudProvider {
 }
 
 function isServiceType(value: string): value is CloudServiceType {
-    return value === 'storage' || value === 'k8s' || value === 'database' || value === 'serverless' || value === 'compute' || value === 'networking'
+    return value === 'storage' || value === 'k8s' || value === 'database' || value === 'dynamodb' || value === 'serverless' || value === 'compute' || value === 'networking'
 }
 
 async function withRuntime(c: Context, handler: () => Promise<Response>): Promise<Response> {

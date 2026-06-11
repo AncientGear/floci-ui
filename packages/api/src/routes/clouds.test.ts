@@ -1,6 +1,7 @@
 import {describe, expect, test} from 'bun:test'
 import {Hono} from 'hono'
 import {azureDatabaseSchema} from '../cloud-spi/databaseSchema'
+import {awsDynamoDbSchema} from '../cloud-spi/dynamodbSchema'
 import {awsStorageSchema, azureStorageSchema} from '../cloud-spi/storageSchema'
 import type {CloudResource, CloudServiceAdapter, CosmosContainer, CosmosItem, CosmosQueryResult, CreateResourceInput} from '../cloud-spi/types'
 import {CloudAdapterRegistry} from '../registry/CloudAdapterRegistry'
@@ -116,6 +117,20 @@ describe('cloud schema routes', () => {
         expect(gcpBody.displayName).toBe('Cloud SQL')
     })
 
+    test('returns AWS dynamodb schema when the adapter is registered', async () => {
+        const app = appWithRoutes([mockAdapter('aws', {
+            service: 'dynamodb',
+            schema: awsDynamoDbSchema,
+        })])
+        const res = await app.request('/api/clouds/aws/services/dynamodb/schema')
+        const body = await res.json()
+
+        expect(res.status).toBe(200)
+        expect(body.cloud).toBe('aws')
+        expect(body.service).toBe('dynamodb')
+        expect(body.displayName).toBe('DynamoDB')
+    })
+
     test('returns AWS cloud status', async () => {
         const res = await appWithRoutes().request('/api/clouds/aws/status')
         const body = await res.json()
@@ -144,6 +159,55 @@ describe('cloud schema routes', () => {
         expect(res.status).toBe(200)
         expect(body.objects).toHaveLength(1)
         expect(body.objects[0].name).toBe('object.txt')
+    })
+
+    test('lists dynamodb resources through the cloud adapter', async () => {
+        const app = appWithRoutes([mockAdapter('aws', {
+            service: 'dynamodb',
+            schema: awsDynamoDbSchema,
+            list: async (): Promise<CloudResource[]> => [{
+                id: 'users',
+                name: 'users',
+                cloud: 'aws',
+                service: 'dynamodb',
+                type: 'dynamodb-table',
+                region: 'us-east-1',
+                createdAt: null,
+                status: 'ACTIVE',
+                metadata: {},
+            }],
+        })])
+
+        const res = await app.request('/api/clouds/aws/services/dynamodb/resources')
+        const body = await res.json()
+
+        expect(res.status).toBe(200)
+        expect(body).toHaveLength(1)
+        expect(body[0].service).toBe('dynamodb')
+        expect(body[0].type).toBe('dynamodb-table')
+    })
+
+    test('does not expose a duplicate dynamodb alias route', async () => {
+        const res = await appWithRoutes().request('/api/clouds/aws/dynamodb/resources')
+
+        expect(res.status).toBe(404)
+    })
+
+    test('includes dynamodb in the aws service listing when registered', async () => {
+        const app = appWithRoutes([
+            mockAdapter('aws'),
+            mockAdapter('aws', {
+                service: 'dynamodb',
+                schema: awsDynamoDbSchema,
+                list: async () => [],
+            }),
+        ])
+
+        const res = await app.request('/api/clouds/aws/services')
+        const body = await res.json()
+
+        expect(res.status).toBe(200)
+        expect(body.some((entry: {service: string}) => entry.service === 'dynamodb')).toBe(true)
     })
 
     test('lists Cosmos containers through the cloud database adapter', async () => {

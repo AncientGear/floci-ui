@@ -6,6 +6,13 @@ const usePolling = process.env.VITE_USE_POLLING === "true";
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/test/setup.ts",
+    css: true,
+    allowOnly: !process.env.CI,
+  },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
   },

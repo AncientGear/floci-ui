@@ -4,9 +4,10 @@ import { EKSClient } from "@aws-sdk/client-eks";
 import { EC2Client } from "@aws-sdk/client-ec2";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 const endpoint = process.env.FLOCI_ENDPOINT;
-const region = process.env.AWS_REGION || "us-east-1";
+export const awsRegion = process.env.AWS_REGION || "us-east-1";
 
 // Floci derives the AWS account from AWS_ACCESS_KEY_ID: a value that is exactly
 // 12 digits is used verbatim as the account id, and resources are isolated per
@@ -39,6 +40,7 @@ export type AwsClients = {
   ec2: EC2Client;
   rds: RDSClient;
   secretsManager: SecretsManagerClient;
+  dynamodb: DynamoDBClient;
 };
 
 export type AwsClientName = keyof AwsClients;
@@ -47,7 +49,7 @@ const clientCache = new Map<string, AwsClients>();
 
 function buildClients(accountId: string): AwsClients {
   const base = {
-    region,
+    region: awsRegion,
     credentials: { accessKeyId: accountId, secretAccessKey: SECRET_ACCESS_KEY },
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
   };
@@ -58,6 +60,7 @@ function buildClients(accountId: string): AwsClients {
     ec2: new EC2Client(base),
     rds: new RDSClient(base),
     secretsManager: new SecretsManagerClient(base),
+    dynamodb: new DynamoDBClient(base),
   };
 }
 
@@ -89,3 +92,4 @@ export const eks = awsClients.eks;
 export const ec2 = awsClients.ec2;
 export const rds = awsClients.rds;
 export const secretsManager = awsClients.secretsManager;
+export const dynamodb = awsClients.dynamodb;

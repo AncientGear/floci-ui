@@ -25,7 +25,7 @@ export function runtimeDetailFor(cloud: CloudProvider, status?: CloudStatus): st
 }
 
 export function activeServicesDetailFor(cloud: CloudProvider): string {
-    if (cloud === 'aws') return 'Storage, k8s Engine, Database, and Secrets Manager are wired'
+    if (cloud === 'aws') return 'Storage, k8s Engine, Database, Secrets Manager and DynamoDB are wired'
     if (cloud === 'gcp') return 'Storage is wired through Floci-GCP'
     return 'Storage only for this multi-cloud pass'
 }
@@ -42,7 +42,7 @@ export function resourceDetailFor(
     if (status?.runtime === 'coming_soon') return 'No adapter registered yet'
     if (resourcesLoading) return 'Loading normalized resources'
     if (resourcesError) return 'Resource load failed'
-    if (cloud === 'aws') return 'Storage, k8s Engine, Database, and Secrets Manager resources'
+    if (cloud === 'aws') return 'Storage, k8s Engine, Database, Secrets Manager and DynamoDB resources'
     if (cloud === 'gcp') return 'Cloud Storage resources'
     return 'Normalized storage resources'
 }

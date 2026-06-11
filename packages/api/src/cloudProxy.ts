@@ -2,6 +2,7 @@ import {CloudAdapterRegistry} from './registry/CloudAdapterRegistry'
 import {AwsComputeAdapter} from './adapter-aws/AwsComputeAdapter'
 import {AwsNetworkingAdapter} from './adapter-aws/AwsNetworkingAdapter'
 import {AwsDatabaseAdapter} from './adapter-aws/AwsDatabaseAdapter'
+import {AwsDynamoDbAdapter} from './adapter-aws/AwsDynamoDbAdapter'
 import {AwsEksAdapter} from './adapter-aws/AwsEksAdapter'
 import {AwsStorageAdapter} from './adapter-aws/AwsStorageAdapter'
 import {AzureDatabaseAdapter} from './adapter-azure/AzureDatabaseAdapter'
@@ -12,6 +13,7 @@ import {AzureServerlessAdapter} from './adapter-azure/AzureServerlessAdapter'
 import {AwsServerlessAdapter} from './adapter-aws/AwsServerlessAdapter'
 import {awsClientsForAccount, resolveAccountId} from './aws'
 import {createEc2Service} from './services/ec2'
+import {createDynamoDbService} from './services/dynamodb'
 import {createEksService} from './services/eks'
 import {createRdsService} from './services/rds'
 
@@ -24,11 +26,13 @@ import {createRdsService} from './services/rds'
 export function createCloudProxyService(accountId?: string | null): CloudProxyService {
     const clients = awsClientsForAccount(accountId)
     const ec2Service = createEc2Service(clients.ec2)
+    const dynamoDbService = createDynamoDbService(clients.dynamodb)
 
     const registry = new CloudAdapterRegistry([
         new AwsStorageAdapter(clients.s3),
         new AwsEksAdapter(createEksService(clients.eks)),
         new AwsDatabaseAdapter(createRdsService(clients.rds), clients.rds),
+        new AwsDynamoDbAdapter(dynamoDbService),
         new AwsComputeAdapter(ec2Service),
         new AwsNetworkingAdapter(ec2Service),
         new AwsServerlessAdapter(clients.lambda),
